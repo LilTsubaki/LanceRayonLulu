@@ -206,6 +206,7 @@ namespace scene
 	const Sphere rightSphere{16.5, glm::vec3 {73, 16.5, 78}};
 
 	const glm::vec3 light{50, 70, 81.6};
+    const glm::vec3 lightColor{20,20,20};
 
 	// Materials
 	const Diffuse white{{.75, .75, .75}};
@@ -413,7 +414,7 @@ glm::vec3 radiance (const Ray & r,int i=0)
 
 int main (int, char **)
 {
-	int w = 768, h = 768;
+    int w = 768*2, h = 768*2;
 	std::vector<glm::vec3> colors(w * h, glm::vec3{0.f, 0.f, 0.f});
 
 	Ray cam {{50, 52, 295.6}, glm::normalize(glm::vec3{0, -0.042612, -1})};	// cam pos, dir
@@ -429,21 +430,39 @@ int main (int, char **)
 
 	glm::mat4 screenToRay = glm::inverse(camera);
 
+
+
+    #pragma omp parallel for
 	for (int y = 0; y < h; y++)
     {
 		std::cerr << "\rRendering: " << 100 * y / (h - 1) << "%";
 
 		for (unsigned short x = 0; x < w; x++)
 		{
-			glm::vec4 p0 = screenToRay * glm::vec4{float(x), float(h - y), 0.f, 1.f};
+            int al=100;
+            glm::vec3 r(0,0,0);
+            for(int i=0;i<al;i++){
+            glm::vec4 p0 = screenToRay * glm::vec4{float(x+random_u()-0.5), float(h - y+random_u()-0.5), 0.f, 1.f};
 			glm::vec4 p1 = screenToRay * glm::vec4{float(x), float(h - y), 1.f, 1.f};
 
 			glm::vec3 pp0 = glm::vec3(p0 / p0.w);
 			glm::vec3 pp1 = glm::vec3(p1 / p1.w);
 
-			glm::vec3 d = glm::normalize(pp1 - pp0);
-
-			glm::vec3 r = radiance (Ray{pp0, d});
+            glm::vec3 d = glm::normalize(pp1 - pp0);
+            r += radiance (Ray{pp0, d});
+            }
+             r/=al;
+            /*r = radiance (Ray{pp0, d});
+            r += radiance (Ray{pp0, d});
+            r += radiance (Ray{pp0, d});
+            r += radiance (Ray{pp0, d});
+            r += radiance (Ray{pp0, d});
+            r += radiance (Ray{pp0, d});
+            r += radiance (Ray{pp0, d});
+            r += radiance (Ray{pp0, d});
+            r += radiance (Ray{pp0, d});
+            r += radiance (Ray{pp0, d});
+            r/=10;//*/
 			colors[y * w + x] += glm::clamp(r, glm::vec3(0.f, 0.f, 0.f), glm::vec3(1.f, 1.f, 1.f)) * 0.25f;
 		}
     }
@@ -462,17 +481,20 @@ glm::vec3 directLight(const Ray& r,const glm::vec3& norm, float f, const Diffuse
     glm::vec3 color=mat.color;
     glm::vec3 inter=r.origin+f*r.direction;
     //random
+    float pdf;
     glm::vec3 dir=scene::light-inter;
     glm::vec3 dirn=glm::normalize(dir);
-    Ray s{inter+(0.1f*dirn),dirn};
+    dirn=scene::light+sample_sphere(10.0f,random_u(),random_u(),pdf,-dirn)-inter;
+    glm::vec3 dirf=glm::normalize(dirn);
+    Ray s{inter+(0.1f*dirf),dirf};
     intersect(s,f,norm2);
     if(f*f<glm::dot(dir,dir)){
         return glm::vec3(0,0,0);
     }
-    float fact =std::abs(glm::dot(dirn,norm)/pi);
+    float fact =std::abs(glm::dot(dirf,norm)/pi);
 
 
-    return fact*color;
+    return (fact*color/pdf/(glm::dot(dirn,dirn)))*scene::lightColor;
 }
 
 glm::vec3 directLight(const Ray& r,const glm::vec3& norm, float f, const Glass& mat){
