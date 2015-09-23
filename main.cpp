@@ -111,12 +111,25 @@ glm::vec3 albedo(const T &t)
 {
 	return t.color;
 }
+glm::vec3 directLight(const Ray& r,const glm::vec3& norm, float f, const Diffuse& mat);
+glm::vec3 directLight(const Ray& r,const glm::vec3& norm, float f, const Glass& mat);
+glm::vec3 directLight(const Ray& r,const glm::vec3& norm, float f, const Mirror& mat);
+glm::vec3 reflect(const Ray& r, const glm::vec3& norm, glm::vec3 &dir, const Diffuse& mat);
+glm::vec3 reflect(const Ray& r,const glm::vec3& norm,glm::vec3 &dir, const Glass& mat);
+glm::vec3 reflect(const Ray& r, const glm::vec3& norm, glm::vec3 &dir, const Mirror& mat);
+glm::vec3 refract(const Ray& r, const glm::vec3& norm, glm::vec3 &dir, const Diffuse& mat);
+glm::vec3 refract(const Ray& r,const glm::vec3& norm,glm::vec3 &dir, const Glass& mat);
+glm::vec3 refract(const Ray& r, const glm::vec3& norm, glm::vec3 &dir, const Mirror& mat);
+
 
 struct Object
 {
 	virtual float intersect(const Ray &r) const = 0;
 	virtual glm::vec3 albedo() const = 0;
     virtual glm::vec3 normale(const glm::vec3& point) const =0;
+    virtual glm::vec3 directLight(const Ray& ray, const glm::vec3& normale, float f) const =0;
+    virtual glm::vec3 reflect(const Ray& ray, const glm::vec3& normale,glm::vec3 &dir) const =0;
+    virtual glm::vec3 refract(const Ray& ray, const glm::vec3& normale,glm::vec3 &dir) const =0;
 };
 
 template<typename P, typename M>
@@ -140,6 +153,18 @@ struct ObjectTpl final : Object
 	{
 		return ::albedo(material);
 	}
+
+    glm::vec3 directLight(const Ray& ray, const glm::vec3& normale, float f) const
+    {
+        return ::directLight(ray, normale, f, material);
+    }
+    glm::vec3 reflect(const Ray& ray, const glm::vec3& normale,glm::vec3 &dir) const{
+        return ::reflect(ray, normale,dir, material);
+    }
+
+    glm::vec3 refract(const Ray& ray, const glm::vec3& normale,glm::vec3 &dir) const{
+        return ::refract(ray, normale,dir,material);
+    }
 
 	const P &primitive;
 	const M &material;
@@ -187,8 +212,8 @@ namespace scene
 	const Diffuse red{{.75, .25, .25}};
 	const Diffuse blue{{.25, .25, .75}};
 
-	const Glass glass{{.9, .1, .9}};
-	const Mirror mirror{{.9, .9, .1}};
+    const Glass glass{{1, 1, 1}};
+    const Mirror mirror{{1, 1, 1}};
 
 	// Objects
 	// Note: this is a rather convoluted way of initialising a vector of unique_ptr ;)
@@ -206,7 +231,7 @@ namespace scene
 		ret.push_back(makeObject(leftWallB, red));
 
 		ret.push_back(makeObject(leftSphere, mirror));
-		ret.push_back(makeObject(rightSphere, glass));
+        ret.push_back(makeObject(rightSphere, glass));
 
 		return ret;
 	}();
@@ -327,7 +352,7 @@ bool refract(glm::vec3 i, glm::vec3 n, float ior, glm::vec3 &wo)
 	return true;
 }
 
-glm::vec3 sample_sphere(const float r, const float u, const float v, float &pdf, const glm::vec3 normal)
+glm::vec3 sample_sphere(const float r, const float u, const float v, float &pdf, const glm::vec3& normal)
 {
 	pdf = 1.f / (pi * r * r);
 	glm::vec3 sample_p = sample_cos(u, v, normal);
@@ -338,13 +363,35 @@ glm::vec3 sample_sphere(const float r, const float u, const float v, float &pdf,
 	return sample_p * r;
 }
 
-glm::vec3 radiance (const Ray & r)
+glm::vec3 radiance (const Ray & r,int i=0)
 {
     float f;
     glm::vec3 norm;
-    glm::vec3 norm2;
-    glm::vec3 color = intersect(r,f,norm)->albedo();
-    glm::vec3 inter=r.origin+f*r.direction;
+    glm::vec3 dir;
+
+    Object* obj=intersect(r,f,norm);
+    if(obj == nullptr)
+        return glm::vec3(0,0,0);
+    glm::vec3 color=obj->directLight(r,norm,f);
+    glm::vec3 colorReflect=obj->reflect(r,norm,dir);
+    glm::vec3 ori=r.origin+f*r.direction+0.1f*dir;
+    Ray ray{ori,dir};
+    if(i<8)//||colorReflect.length()<0.01)
+        colorReflect=colorReflect*radiance(ray,i+1);
+    else
+        colorReflect=glm::vec3(0,0,0);
+
+
+    glm::vec3 colorRefract=obj->refract(r,norm,dir);
+    glm::vec3 orig=r.origin+f*r.direction+0.1f*dir;
+    Ray ray2{orig,dir};
+    if(i<8)//||colorRefract.length()<0.01)
+        colorRefract=colorRefract*radiance(ray2,i+1);
+    else
+        colorRefract=glm::vec3(0,0,0);
+
+    //glm::vec3 color = obj->albedo();
+    /*glm::vec3 inter=r.origin+f*r.direction;
     glm::vec3 dir=scene::light-inter;
     glm::vec3 dirn=glm::normalize(dir);
     Ray s{inter+(0.1f*dirn),dirn};
@@ -360,7 +407,8 @@ glm::vec3 radiance (const Ray & r)
     fact*=0.9;
     fact+=0.1;
 
-    return fact*color;
+    return fact*color;*/
+    return color+colorReflect+colorRefract;
 }
 
 int main (int, char **)
@@ -407,4 +455,80 @@ int main (int, char **)
 		for (auto c : colors)
 			f << toInt(c.x) << " " << toInt(c.y) << " " << toInt(c.z) << " ";
 	}
+}
+
+glm::vec3 directLight(const Ray& r,const glm::vec3& norm, float f, const Diffuse& mat){
+    glm::vec3 norm2;
+    glm::vec3 color=mat.color;
+    glm::vec3 inter=r.origin+f*r.direction;
+    //random
+    glm::vec3 dir=scene::light-inter;
+    glm::vec3 dirn=glm::normalize(dir);
+    Ray s{inter+(0.1f*dirn),dirn};
+    intersect(s,f,norm2);
+    if(f*f<glm::dot(dir,dir)){
+        return glm::vec3(0,0,0);
+    }
+    float fact =std::abs(glm::dot(dirn,norm)/pi);
+
+
+    return fact*color;
+}
+
+glm::vec3 directLight(const Ray& r,const glm::vec3& norm, float f, const Glass& mat){
+    /*glm::vec3 norm2;
+    glm::vec3 color=mat.color;
+    glm::vec3 inter=r.origin+f*r.direction;
+    glm::vec3 dir=scene::light-inter;
+    glm::vec3 dirn=glm::normalize(dir);
+    Ray s{inter+(0.1f*dirn),dirn};
+    intersect(s,f,norm2);
+    if(f*f<glm::dot(dir,dir)){
+        return glm::vec3(0,0,0);
+    }
+    float fact =std::abs(glm::dot(dirn,norm)/pi);
+
+
+    return fact*color;//*/
+    return glm::vec3(0,0,0);
+}
+
+glm::vec3 directLight(const Ray& r,const glm::vec3& norm, float f, const Mirror& mat){
+    return glm::vec3(0,0,0);
+}
+
+glm::vec3 reflect(const Ray& r, const glm::vec3& norm, glm::vec3 &dir, const Diffuse& mat){
+    return glm::vec3(0,0,0);
+}
+
+glm::vec3 reflect(const Ray& r,const glm::vec3& norm,glm::vec3 &dir, const Glass& mat){
+    dir=reflect(-r.direction,norm);
+    float fres=fresnelR(-r.direction,norm,1.5f);
+    return fres*mat.color;//*/
+    //return glm::vec3(0,0,0);
+}
+
+glm::vec3 reflect(const Ray& r,const glm::vec3& norm,glm::vec3& dir, const Mirror& mat){
+    dir=reflect(-r.direction,norm);
+    return mat.color;
+}
+
+glm::vec3 refract(const Ray& r, const glm::vec3& norm, glm::vec3 &dir, const Diffuse& mat){
+    return glm::vec3(0,0,0);
+}
+
+glm::vec3 refract(const Ray& r,const glm::vec3& norm,glm::vec3 &dir, const Glass& mat){
+    if(refract(-r.direction,norm,1.5f,dir)){
+        float fres=fresnelR(-r.direction,norm,1.5f);
+        return (1-fres)*mat.color;
+    }
+    else{
+        return glm::vec3(0,0,0);
+    }//*/
+
+    //return glm::vec3(0,0,0);
+}
+
+glm::vec3 refract(const Ray& r, const glm::vec3& norm, glm::vec3 &dir, const Mirror& mat){
+    return glm::vec3(0,0,0);
 }
