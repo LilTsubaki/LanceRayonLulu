@@ -401,7 +401,36 @@ glm::vec3 radiance (const Ray & r,int i=0)
 
 int main (int, char **)
 {
-    int w = 768, h = 768;
+    /*int it = 50000000;
+    float tot = 0;
+    for(int  i = 0; i < it; ++i)
+    {
+        float random = (random_u()*pi)-pi/2;
+        tot += pow(cos(random),10);
+    }
+    tot *= pi;
+    tot /= it;
+    std::cout << tot << std::endl;
+
+    float ecartType = 0.5;
+    tot = 0;
+    for(int  i = 0; i < it; ++i)
+    {
+        float random1 = random_u();
+        float random2 = random_u();
+        float ra = sqrtf(-2*log(random1));
+        float xPrime = ra*cos(2*pi*random2)*ecartType;
+        if(xPrime >= -pi/2 && xPrime <= pi/2)
+        {
+            float proba = 1/(ecartType*sqrtf(2*pi))*exp((-xPrime*xPrime)/(2*ecartType*ecartType));
+            tot += pow(cos(xPrime),10)/proba;
+        }
+    }
+    tot /= it;
+    std::cout << tot << std::endl;
+    */
+
+    int w = 768/2, h = 768/2;
 	std::vector<glm::vec3> colors(w * h, glm::vec3{0.f, 0.f, 0.f});
 
 	Ray cam {{50, 52, 295.6}, glm::normalize(glm::vec3{0, -0.042612, -1})};	// cam pos, dir
@@ -426,26 +455,26 @@ int main (int, char **)
 
 		for (unsigned short x = 0; x < w; x++)
 		{
-            int al=30;
+            int al=10;
             glm::vec3 r(0,0,0);
             for(int i=0;i<al;i++)
             {
                 float random1 = random_u();
                 float random2 = random_u();
-                float ra = sqrtf(-2*log(random1));
+                /*float ra = sqrtf(-2*log(random1));
                 float xPrime = ra*cos(2*pi*random1);
-                float yPrime = ra*sin(2*pi*random2);
-            glm::vec4 p0 = screenToRay * glm::vec4{float(x+random1-0.5), float(h - y+random2-0.5), 0.f, 1.f};
-            glm::vec4 p1 = screenToRay * glm::vec4{float(x+random1-0.5), float(h - y+random2-0.5), 1.f, 1.f};
+                float yPrime = ra*sin(2*pi*random2);*/
+                glm::vec4 p0 = screenToRay * glm::vec4{float(x+random1-0.5), float(h - y+random2-0.5), 0.f, 1.f};
+                glm::vec4 p1 = screenToRay * glm::vec4{float(x+random1-0.5), float(h - y+random2-0.5), 1.f, 1.f};
 
-			glm::vec3 pp0 = glm::vec3(p0 / p0.w);
-			glm::vec3 pp1 = glm::vec3(p1 / p1.w);
+                glm::vec3 pp0 = glm::vec3(p0 / p0.w);
+                glm::vec3 pp1 = glm::vec3(p1 / p1.w);
 
-            glm::vec3 d = glm::normalize(pp1 - pp0);
-            r += radiance (Ray{pp0, d});
+                glm::vec3 d = glm::normalize(pp1 - pp0);
+                r += radiance (Ray{pp0, d});
             }
              r/=al;
-			colors[y * w + x] += glm::clamp(r, glm::vec3(0.f, 0.f, 0.f), glm::vec3(1.f, 1.f, 1.f)) * 0.25f;
+            colors[y * w + x] += glm::clamp(r, glm::vec3(0.f, 0.f, 0.f), glm::vec3(1.f, 1.f, 1.f));// * 0.25f;
 		}
     }
 
@@ -487,7 +516,7 @@ glm::vec3 indirectLight(const Ray& r, int i=0){
     Object* obj=touchLight(r,li,norm);
 
     if(li){
-        return scene::lightColor;
+        return scene::lightColor*1000.0f;
     }
 
     if(obj==nullptr){
@@ -497,7 +526,7 @@ glm::vec3 indirectLight(const Ray& r, int i=0){
     glm::vec3 dirReflect;
     glm::vec3 dirRefract;
     glm::vec3 colorReflect =obj->reflect(r,norm,dirReflect);
-    glm::vec3 colorRefract =obj->reflect(r,norm,dirRefract);
+    glm::vec3 colorRefract =obj->refract(r,norm,dirRefract);
 
     Ray rReflect{r.origin-(0.1f*r.direction)+(0.1f*dirReflect),dirReflect};
     Ray rRefract{r.origin-(0.1f*r.direction)+(0.1f*dirRefract),dirRefract};
@@ -519,15 +548,15 @@ glm::vec3 directLight(const Ray& r,const glm::vec3& norm, float f, const Diffuse
     Ray s{inter+(0.1f*dirf),dirf};
     intersect(s,f,norm2);
     if(f*f<glm::dot(dir,dir)){
-       /* glm::vec3 col(0,0,0);
-        for(int i=0;i<100;i++){
+        glm::vec3 col(0,0,0);
+        for(int i=0;i<10;i++){
             glm::vec3 dir2=glm::normalize(sample_cos(random_u(),random_u(),norm2));
-            Ray ray{s.origin+f*r.direction+0.1f*dir2,dir2};
+            Ray ray{s.origin+f*s.direction+0.1f*dir2,dir2};
             col+=indirectLight(ray);
         }
 
-        return col/100.0f/(glm::dot(dirn,dirn));//*/
-        //return glm::vec3(0,0,0);
+        return col/10.0f;//(glm::dot(dirn,dirn));//*/
+        //return col;
     }
     float fact =std::abs(glm::dot(dirf,norm)/pi);
 

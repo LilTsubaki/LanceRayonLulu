@@ -11,7 +11,7 @@ LIBS += -fopenmp
 TEMPLATE = app
 
 SOURCES += \
-    main.cpp
+    main2.cpp
 
 HEADERS +=
 
