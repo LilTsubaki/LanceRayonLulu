@@ -8,6 +8,7 @@
 #include <memory>
 #include <fstream>
 #include <iostream>
+#include "maillage.h"
 
 // GLM (vector / matrix)
 #define GLM_FORCE_RADIANS
@@ -51,6 +52,12 @@ glm::vec3 normale(const glm::vec3& point, const Triangle &triangle){
     return glm::normalize(glm::cross(triangle.v1-triangle.v0,triangle.v2-triangle.v0));
 }
 
+glm::vec3 normale(const glm::vec3& point, const Maillage &maillage){
+    return glm::vec3(1,0,0);
+}
+
+
+
     // WARRING: works only if r.d is normalized
 float intersect (const Ray & ray, const Sphere &sphere)
 {				// returns distance, 0 if nohit
@@ -90,6 +97,21 @@ float intersect(const Ray & ray, const Triangle &triangle)
         return noIntersect;
 
     return t;
+}
+
+float intersect (const Ray & ray, const Maillage &maillage)
+{
+    float t=noIntersect;
+    for(int i=0;i<maillage.getTopo().size();i+=3){
+        QVector3D p1=maillage.getGeom().at(maillage.getTopo().at(i));
+        QVector3D p2=maillage.getGeom().at(maillage.getTopo().at(i+1));
+        QVector3D p3=maillage.getGeom().at(maillage.getTopo().at(i+2));
+        Triangle tri{{p1.x(),p1.y(),p1.z()},{p2.x(),p2.y(),p2.z()},{p3.x(),p3.y(),p3.z()}};
+        float temp=intersect(ray,tri);
+        if(temp<t&&temp>0)
+            t=temp;
+    }
+     return t;
 }
 
 struct Diffuse
@@ -219,9 +241,16 @@ namespace scene
     const Glass glass{{1, 1, 1}};
     const Mirror mirror{{1, 1, 1}};
 
+
+
     // Objects
     // Note: this is a rather convoluted way of initialising a vector of unique_ptr ;)
     const std::vector<std::unique_ptr<Object>> objects = [] (){
+        Maillage m;
+        QVector3D center(50,0,50);
+        m.geometry(center,"C:/Users/etu/Downloads/BeautifulGirl/BeautifulGirl.obj");
+        //m.translate(center);
+        m.Ecriture("BeautifulGirl.obj");
         std::vector<std::unique_ptr<Object>> ret;
         ret.push_back(makeObject(backWallA, white));
         ret.push_back(makeObject(backWallB, white));
@@ -234,8 +263,18 @@ namespace scene
         ret.push_back(makeObject(leftWallA, red));
         ret.push_back(makeObject(leftWallB, red));
 
-        ret.push_back(makeObject(leftSphere, mirror));
-        ret.push_back(makeObject(rightSphere, glass));
+        ret.push_back(makeObject(m, white));
+        //ret.push_back(std::unique_ptr<Object>(new ObjectTpl<Maillage,Diffuse>(m,white)));
+
+        /*for(int i=0;i<m.getTopo().size();i+=3){
+            QVector3D p1=m.getGeom().at(m.getTopo().at(i));
+            QVector3D p2=m.getGeom().at(m.getTopo().at(i+1));
+            QVector3D p3=m.getGeom().at(m.getTopo().at(i+2));
+            Triangle tri{{p1.x(),p1.y(),p1.z()},{p2.x(),p2.y(),p2.z()},{p3.x(),p3.y(),p3.z()}};
+            ret.push_back(makeObject(tri,white));
+        }*/
+        //ret.push_back(makeObject(leftSphere, mirror));
+        //ret.push_back(makeObject(rightSphere, glass));
         //ret.push_back(makeObject(sphere, white));
 
         return ret;
@@ -409,6 +448,7 @@ glm::vec3 radiance (const Ray & r,int i=8)
 
 int main (int, char **)
 {
+
     int w = 768, h = 768;
     std::vector<glm::vec3> colors(w * h, glm::vec3{0.f, 0.f, 0.f});
 
@@ -435,7 +475,7 @@ int main (int, char **)
 
         for (unsigned short x = 0; x < w; x++)
         {
-            int al=15;
+            int al=1;
             glm::vec3 r(0,0,0);
             for(int i=0;i<al;i++)
             {
@@ -540,3 +580,4 @@ glm::vec3 refract(const Ray& r, const glm::vec3& norm, glm::vec3 &dir, const Mir
     fres = 1;
     return glm::vec3(0,0,0);
 }
+

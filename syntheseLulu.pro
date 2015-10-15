@@ -1,5 +1,5 @@
 QT += core
-QT -= gui
+QT += gui
 
 TARGET = syntheseLulu
 CONFIG += console
@@ -11,7 +11,9 @@ LIBS += -fopenmp
 TEMPLATE = app
 
 SOURCES += \
-    main.cpp
+    main.cpp \
+    maillage.cpp
 
-HEADERS +=
+HEADERS += \
+    maillage.h
 
