@@ -435,7 +435,7 @@ int main (int, char **)
 
         for (unsigned short x = 0; x < w; x++)
         {
-            int al=5;
+            int al=15;
             glm::vec3 r(0,0,0);
             for(int i=0;i<al;i++)
             {
@@ -481,14 +481,12 @@ glm::vec3 directLight(const Ray& r,const glm::vec3& norm, float f, const Diffuse
                 color=glm::vec3(0,0,0);
     }
 
-    float pdf2;
-    glm::vec3 dirAlea=glm::normalize(sample_sphere(1,random_u(),random_u(),pdf2, norm));
-    Ray ray{inter+0.1f*dirAlea,dirAlea};
+
 
     float fact =std::abs(glm::dot(dirInterToPointLightNormal,norm)/pi);
 
 
-    return (fact*color/pdf/(glm::dot(dirInterToPointLight,dirInterToPointLight)))*scene::lightColor+radiance(ray,it-1)*mat.color;
+    return (fact*color/pdf/(glm::dot(dirInterToPointLight,dirInterToPointLight)))*scene::lightColor;
 }
 
 glm::vec3 directLight(const Ray& r,const glm::vec3& norm, float f, const Glass& mat,int it){
@@ -501,8 +499,10 @@ glm::vec3 directLight(const Ray& r,const glm::vec3& norm, float f, const Mirror&
 }
 
 glm::vec3 reflect(const Ray& r, const glm::vec3& norm, glm::vec3 &dir, const Diffuse& mat, float &fres){
+    float pdf2;
+    dir=glm::normalize(sample_sphere(1,random_u(),random_u(),pdf2, norm));
     fres=1;
-    return glm::vec3(0,0,0);
+    return mat.color;
 }
 
 glm::vec3 reflect(const Ray& r, const glm::vec3& norm, glm::vec3 &dir, const Glass& mat, float &fres){
