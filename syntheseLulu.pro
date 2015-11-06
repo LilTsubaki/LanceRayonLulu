@@ -12,8 +12,10 @@ TEMPLATE = app
 
 SOURCES += \
     main.cpp \
-    maillage.cpp
+    maillage.cpp \
+    plane.cpp
 
 HEADERS += \
-    maillage.h
+    maillage.h \
+    plane.h
 

@@ -90,11 +90,13 @@ void Maillage::Ecriture(std::string nom)
     }
 }
 
-void Maillage::translate(const QVector3D &t)
+void Maillage::translate(const QVector3D &t, glm::vec3 &min, glm::vec3 &max)
 {
     for(int i;i<geom.size();++i){
         geom[i]+=t;
     }
+    min = glm::vec3(min.x+t.x(), min.y+t.y(),min.z+t.z());
+    max = glm::vec3(max.x+t.x(), max.y+t.y(),max.z+t.z());
 }
 
 Maillage Maillage::Rotation(const double matrice[3][3])
@@ -122,7 +124,7 @@ Maillage::~Maillage()
 
 }
 
-void Maillage::geometry(const QVector3D &center, const char* obj) {
+void Maillage::geometry(const QVector3D &center, const char* obj, glm::vec3 &min, glm::vec3 &max) {
     QVector3D minVal(1E100, 1E100, 1E100), maxVal(-1E100, -1E100, -1E100);
     FILE* f = fopen(obj, "r");
     while (!feof(f)) {
@@ -140,6 +142,8 @@ void Maillage::geometry(const QVector3D &center, const char* obj) {
             minVal[0] = std::min(minVal[0], p[0]);
             minVal[1] = std::min(minVal[1], p[1]);
             minVal[2] = std::min(minVal[2], p[2]);
+            min = glm::vec3(minVal[0], minVal[1], minVal[2]);
+            max = glm::vec3(maxVal[0], maxVal[1], maxVal[2]);
         }
         if (line[0]=='v' && line[1]=='n') {
             QVector3D vec;

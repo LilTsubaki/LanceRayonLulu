@@ -9,6 +9,7 @@
 #include <fstream>
 #include <iostream>
 #include "maillage.h"
+#include "plane.h"
 
 // GLM (vector / matrix)
 #define GLM_FORCE_RADIANS
@@ -40,8 +41,92 @@ struct Sphere
 struct Triangle
 {
     const glm::vec3 v0, v1, v2;
-        //Triangle(glm::vec3 va,glm::vec3 vb, glm::vec3 vc ) : v0(va), v1(vb), v2(vc){}
 
+};
+struct Box
+{
+    glm::vec3 v0, v1;
+    Box( glm::vec3 v, glm::vec3 w):v0(v),v1(w){}
+
+};
+
+bool inDaBox(const Box & b, QVector3D p)
+{
+    return(p.x() > b.v0.x && p.x() < b.v1.x && p.y() > b.v0.y && p.y() < b.v1.y && p.z() > b.v0.z && p.z() < b.v1.z);
+}
+
+struct BoiteEnglobante
+{
+    BoiteEnglobante(const Maillage & m, const Box & b, const QVector<int> & indices):maillage(&m),laBoite(b)
+    {
+        for(int cpt = 0; cpt < indices.length(); ++cpt)
+        {
+            int indice=indices.at(cpt);
+            if(inDaBox(b,m.getGeom().at(m.getTopo().at(3*indice)))
+                    ||inDaBox(b,m.getGeom().at(m.getTopo().at(3*indice+1)))
+                    ||inDaBox(b,m.getGeom().at(m.getTopo().at(3*indice+2))))
+            {
+                //std::cout << "append" << std::endl;
+                indexTriangles.append(indice);
+            }
+
+        }
+        std::cout<<indexTriangles.size()<<std::endl;
+
+        if(indexTriangles.size()>20)
+        {
+            //std::cout << "subdivision" << std::endl;
+            glm::vec3 tem=((b.v0+b.v1)/2.0f);
+            Box b1(b.v0,tem);
+            Box b2(glm::vec3(b1.v1.x, b1.v0.y, b1.v0.z),glm::vec3(b.v1.x, b1.v1.y, b1.v1.z));
+            Box b3(glm::vec3(b1.v0.x, b1.v1.y, b1.v0.z),glm::vec3(b1.v1.x, b.v1.y, b1.v1.z));
+            Box b4(glm::vec3(b1.v1.x, b1.v1.y, b.v0.z),glm::vec3(b.v1.x, b.v1.y, b1.v1.z));
+
+            Box b5(glm::vec3(b.v0.x, b.v0.y, b1.v1.z),glm::vec3(b1.v1.x, b1.v1.y, b.v1.z));
+            Box b6(glm::vec3(b1.v1.x, b1.v0.y, b1.v1.z),glm::vec3(b.v1.x, b1.v1.y, b.v1.z));
+            Box b7(glm::vec3(b1.v0.x, b1.v1.y, b1.v1.z),glm::vec3(b1.v1.x, b.v1.y, b.v1.z));
+            Box b8(glm::vec3(b1.v1.x, b1.v1.y, b1.v1.z),glm::vec3(b.v1.x, b.v1.y, b.v1.z));
+            f1=new BoiteEnglobante(m,b1,indexTriangles);
+            f2=new BoiteEnglobante(m,b2,indexTriangles);
+            f3=new BoiteEnglobante(m,b3,indexTriangles);
+            f4=new BoiteEnglobante(m,b4,indexTriangles);
+            f5=new BoiteEnglobante(m,b5,indexTriangles);
+            f6=new BoiteEnglobante(m,b6,indexTriangles);
+            f7=new BoiteEnglobante(m,b7,indexTriangles);
+            f8=new BoiteEnglobante(m,b8,indexTriangles);
+
+        }
+
+    }
+
+    Box laBoite;
+    BoiteEnglobante* f1;
+    BoiteEnglobante* f2;
+    BoiteEnglobante* f3;
+    BoiteEnglobante* f4;
+    BoiteEnglobante* f5;
+    BoiteEnglobante* f6;
+    BoiteEnglobante* f7;
+    BoiteEnglobante* f8;
+    const Maillage * maillage;
+    QVector<int> indexTriangles;
+    ~BoiteEnglobante()
+    {
+        delete(f1);
+        delete(f2);
+        delete(f3);
+        delete(f4);
+        delete(f5);
+        delete(f6);
+        delete(f7);
+        delete(f8);
+    }
+};
+
+struct MaillageBox
+{
+    const Maillage m;
+    const BoiteEnglobante b;
 };
 
 glm::vec3 normale(const glm::vec3& point, const Sphere& sphere){
@@ -52,8 +137,34 @@ glm::vec3 normale(const glm::vec3& point, const Triangle &triangle){
     return glm::normalize(glm::cross(triangle.v1-triangle.v0,triangle.v2-triangle.v0));
 }
 
-glm::vec3 normale(const glm::vec3& point, const Maillage &maillage){
+glm::vec3 normale(const glm::vec3& point, const Maillage &maillage)
+{
     return glm::vec3(1,0,0);
+}
+
+glm::vec3 normale(const glm::vec3& point, const BoiteEnglobante &be)
+{
+    return glm::vec3(1,0,0);
+}
+
+glm::vec3 normale(const glm::vec3& point, const MaillageBox &mb)
+{
+    return normale(point,mb.m);
+}
+
+glm::vec3 normale(const glm::vec3& point, const Box &box){
+    if(std::abs(point.x-box.v0.x)<0.01)
+        return glm::vec3(-1,0,0);
+    if(std::abs(point.x-box.v1.x)<0.01)
+        return glm::vec3(1,0,0);
+    if(std::abs(point.y-box.v0.y)<0.01)
+        return glm::vec3(0,-1,0);
+    if(std::abs(point.y-box.v1.y)<0.01)
+        return glm::vec3(0,1,0);
+    if(std::abs(point.z-box.v0.z)<0.01)
+        return glm::vec3(0,0,-1);
+    if(std::abs(point.z-box.v1.z)<0.01)
+        return glm::vec3(0,0,1);
 }
 
 
@@ -113,6 +224,117 @@ float intersect (const Ray & ray, const Maillage &maillage)
     }
      return t;
 }
+
+float intersect (const Ray & r, const Box &box)
+{
+    float t;
+    glm::vec3 dirfrac;
+    // r.dir is unit direction vector of ray
+    dirfrac.x = 1.0f / r.direction.x;
+    dirfrac.y = 1.0f / r.direction.y;
+    dirfrac.z = 1.0f / r.direction.z;
+    // lb is the corner of AABB with minimal coordinates - left bottom, rt is maximal corner
+    // r.org is origin of ray
+    float t1 = (box.v0.x - r.origin.x)*dirfrac.x;
+    float t2 = (box.v1.x - r.origin.x)*dirfrac.x;
+    float t3 = (box.v0.y - r.origin.y)*dirfrac.y;
+    float t4 = (box.v1.y - r.origin.y)*dirfrac.y;
+    float t5 = (box.v0.z - r.origin.z)*dirfrac.z;
+    float t6 = (box.v1.z - r.origin.z)*dirfrac.z;
+
+    float tmin = std::max(std::max(std::min(t1, t2), std::min(t3, t4)), std::min(t5, t6));
+    float tmax = std::min(std::min(std::max(t1, t2), std::max(t3, t4)), std::max(t5, t6));
+
+    // if tmax < 0, ray (line) is intersecting AABB, but whole AABB is behing us
+    if (tmax < 0)
+    {
+        t = tmax;
+        return noIntersect;
+    }
+
+    // if tmin > tmax, ray doesn't intersect AABB
+    if (tmin > tmax)
+    {
+        t = tmax;
+        return noIntersect;
+    }
+
+    t = tmin;
+    return t;
+
+}
+
+float intersect (const Ray & ray, const BoiteEnglobante &b)
+{
+    float f=noIntersect;
+    if(intersect(ray, b.laBoite) != noIntersect)
+    {
+        if(b.f1!=nullptr)
+        {
+
+            float minf;
+            if((f=intersect(ray, *(b.f1)))!=noIntersect){
+               if(f<minf)
+                   minf=f;
+            }
+            if((f=intersect(ray, *(b.f2)))!=noIntersect){
+                if(f<minf)
+                    minf=f;
+            }
+            if((f=intersect(ray, *(b.f3)))!=noIntersect){
+                if(f<minf)
+                    minf=f;
+            }
+            if((f=intersect(ray, *(b.f4)))!=noIntersect){
+                if(f<minf)
+                    minf=f;
+            }
+            if((f=intersect(ray, *(b.f5)))!=noIntersect){
+                if(f<minf)
+                    minf=f;
+            }
+            if((f=intersect(ray, *(b.f6)))!=noIntersect){
+                if(f<minf)
+                    minf=f;
+            }
+            if((f=intersect(ray, *(b.f7)))!=noIntersect){
+                if(f<minf)
+                    minf=f;
+            }
+            if((f=intersect(ray, *(b.f8)))!=noIntersect){
+                if(f<minf)
+                    minf=f;
+            }
+            return minf;
+        }
+        else
+        {
+            for(int cpt = 0; cpt < b.indexTriangles.length(); cpt++)
+            {
+                QVector3D p1=b.maillage->getGeom().at(b.maillage->getTopo().at(b.indexTriangles.at(cpt)*3));
+                QVector3D p2=b.maillage->getGeom().at(b.maillage->getTopo().at(b.indexTriangles.at(cpt)*3+1));
+                QVector3D p3=b.maillage->getGeom().at(b.maillage->getTopo().at(b.indexTriangles.at(cpt)*3+2));
+                Triangle tri{{p1.x(),p1.y(),p1.z()},{p2.x(),p2.y(),p2.z()},{p3.x(),p3.y(),p3.z()}};
+                float temp=intersect(ray,tri);
+                if(temp<f&&temp>0)
+                    f=temp;
+            }
+
+            return f;
+        }
+    }
+    else
+    {
+        return noIntersect;
+    }
+}
+
+float intersect (const Ray & ray, const MaillageBox &mb)
+{
+    return intersect(ray,mb.b);
+}
+
+
 
 struct Diffuse
 {
@@ -241,6 +463,8 @@ namespace scene
     const Glass glass{{1, 1, 1}};
     const Mirror mirror{{1, 1, 1}};
 
+    //const Box box{glm::vec3 {50, 16.5, 78}, glm::vec3 {55, 21.5, 83}};
+
 
 
     // Objects
@@ -248,9 +472,26 @@ namespace scene
     const std::vector<std::unique_ptr<Object>> objects = [] (){
         Maillage m;
         QVector3D center(50,0,50);
-        m.geometry(center,"C:/Users/etu/Downloads/BeautifulGirl/BeautifulGirl.obj");
-        //m.translate(center);
-        m.Ecriture("BeautifulGirl.obj");
+        glm::vec3 min;
+        glm::vec3 max;
+        m.geometry(center,"C:/Users/etu/Downloads/BeautifulGirl/BeautifulGirl.obj", min, max);
+        std::cout << "chargement obj done " << std::endl;
+        m.translate(center, min, max);
+        //m.Ecriture("BeautifulGirl.obj");
+        Box box(min, max);
+        std::cout << "debut creation boite englobante " << std::endl;
+        BoiteEnglobante test(m, box, m.getTopo());
+        std::cout << test.indexTriangles.length() << std::endl;
+        std::cout << test.f1->indexTriangles.length() << std::endl;
+        std::cout << test.f2->indexTriangles.length() << std::endl;
+        std::cout << test.f3->indexTriangles.length() << std::endl;
+        std::cout << test.f4->indexTriangles.length() << std::endl;
+        std::cout << test.f5->indexTriangles.length() << std::endl;
+        std::cout << test.f6->indexTriangles.length() << std::endl;
+        std::cout << test.f7->indexTriangles.length() << std::endl;
+        std::cout << test.f8->indexTriangles.length() << std::endl;
+        std::cout << "creation boite englobante done " << std::endl;
+
         std::vector<std::unique_ptr<Object>> ret;
         ret.push_back(makeObject(backWallA, white));
         ret.push_back(makeObject(backWallB, white));
@@ -263,7 +504,9 @@ namespace scene
         ret.push_back(makeObject(leftWallA, red));
         ret.push_back(makeObject(leftWallB, red));
 
-        ret.push_back(makeObject(m, white));
+        //ret.push_back(makeObject(m, red));
+
+        //ret.push_back(makeObject(m, white));
         //ret.push_back(std::unique_ptr<Object>(new ObjectTpl<Maillage,Diffuse>(m,white)));
 
         /*for(int i=0;i<m.getTopo().size();i+=3){
@@ -475,7 +718,7 @@ int main (int, char **)
 
         for (unsigned short x = 0; x < w; x++)
         {
-            int al=1;
+            int al=8;
             glm::vec3 r(0,0,0);
             for(int i=0;i<al;i++)
             {

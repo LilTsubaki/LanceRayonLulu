@@ -5,6 +5,7 @@
 #include <iostream>
 #include <fstream>
 #include <time.h>
+#include <C:/Users/etu/Downloads/glm-0.9.7.1/glm/glm/vec3.hpp>
 
 
 class Maillage
@@ -27,8 +28,8 @@ class Maillage
         Maillage Rotation(const double matrice[3][3]);
         void Merge(Maillage figure2);
         void Ecriture(std::string nom);
-        void translate(const QVector3D& t);
-        void geometry(const QVector3D &center, const char* obj);
+        void translate(const QVector3D& t,glm::vec3 &min, glm::vec3 &max);
+        void geometry(const QVector3D &center, const char* obj, glm::vec3 &min, glm::vec3 &max);
 
         ~Maillage();
         const QVector<QVector3D>& getGeom() const;
