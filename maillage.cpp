@@ -92,11 +92,22 @@ void Maillage::Ecriture(std::string nom)
 
 void Maillage::translate(const QVector3D &t, glm::vec3 &min, glm::vec3 &max)
 {
-    for(int i;i<geom.size();++i){
+    min=glm::vec3(std::numeric_limits<float>::infinity(),std::numeric_limits<float>::infinity(),std::numeric_limits<float>::infinity());
+    max=glm::vec3(std::numeric_limits<float>::lowest(),std::numeric_limits<float>::lowest(),std::numeric_limits<float>::lowest());
+    for(int i=0;i<geom.size();++i){
         geom[i]+=t;
+        //std::cout<<geom[i].x()<<std::endl;
+        min.x=std::min(min.x,geom[i].x());
+        min.y=std::min(min.y,geom[i].y());
+        min.z=std::min(min.z,geom[i].z());
+
+        max.x=std::max(max.x,geom[i].x());
+        max.y=std::max(max.y,geom[i].y());
+        max.z=std::max(max.z,geom[i].z());
+
     }
-    min = glm::vec3(min.x+t.x(), min.y+t.y(),min.z+t.z());
-    max = glm::vec3(max.x+t.x(), max.y+t.y(),max.z+t.z());
+    /*min = glm::vec3(min.x+t.x(), min.y+t.y(),min.z+t.z());
+    max = glm::vec3(max.x+t.x(), max.y+t.y(),max.z+t.z());*/
 }
 
 Maillage Maillage::Rotation(const double matrice[3][3])

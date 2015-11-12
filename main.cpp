@@ -59,74 +59,111 @@ struct BoiteEnglobante
 {
     BoiteEnglobante(const Maillage & m, const Box & b, const QVector<int> & indices):maillage(&m),laBoite(b)
     {
+        glm::vec3 min=glm::vec3(std::numeric_limits<float>::infinity(),std::numeric_limits<float>::infinity(),std::numeric_limits<float>::infinity());
+        glm::vec3 max=glm::vec3(std::numeric_limits<float>::lowest(),std::numeric_limits<float>::lowest(),std::numeric_limits<float>::lowest());
+        //std::cout << indices.size() << std::endl;
         for(int cpt = 0; cpt < indices.length(); ++cpt)
         {
             int indice=indices.at(cpt);
-            if(inDaBox(b,m.getGeom().at(m.getTopo().at(3*indice)))
-                    ||inDaBox(b,m.getGeom().at(m.getTopo().at(3*indice+1)))
-                    ||inDaBox(b,m.getGeom().at(m.getTopo().at(3*indice+2))))
+            //std::cout << m.getGeom().at(m.getTopo().at(3*indice)).x() << " " << m.getGeom().at(m.getTopo().at(3*indice)).y() << " " << m.getGeom().at(m.getTopo().at(3*indice)).z() << std::endl;
+            QVector3D p1 =m.getGeom().at(m.getTopo().at(3*indice));
+            QVector3D p2 =m.getGeom().at(m.getTopo().at(3*indice+1));
+            QVector3D p3 =m.getGeom().at(m.getTopo().at(3*indice+2));
+            if(inDaBox(b,p1)||inDaBox(b,p2)||inDaBox(b,p3))
             {
                 //std::cout << "append" << std::endl;
                 indexTriangles.append(indice);
-            }
+                min.x=std::min(min.x,std::min(p1.x(),std::min(p2.x(),p3.x())));
+                min.y=std::min(min.y,std::min(p1.y(),std::min(p2.y(),p3.y())));
+                min.z=std::min(min.z,std::min(p1.z(),std::min(p2.z(),p3.z())));
 
+                max.x=std::max(max.x,std::max(p1.x(),std::max(p2.x(),p3.x())));
+                max.y=std::max(max.y,std::max(p1.y(),std::max(p2.y(),p3.y())));
+                max.z=std::max(max.z,std::max(p1.z(),std::max(p2.z(),p3.z())));
+            }
         }
-        std::cout<<indexTriangles.size()<<std::endl;
+        //std::cout<<indexTriangles.size()<<std::endl;
+        laBoite=Box{min,max};
+
+        /*glm::vec3 dist = max-min;
+
+        glm::vec3 centre =(min+max)/2.0f;
+        if(indexTriangles.size()>20)
+        {
+            if(dist.x > dist.y && dist.x> dist.z)
+            {
+                Box b1{min, glm::vec3(centre.x,max.y,max.z)};
+                Box b2{glm::vec3(centre.x,min.y,min.z), max};
+                f1=std::unique_ptr<BoiteEnglobante>(new BoiteEnglobante(m,b1,indexTriangles));
+                f2=std::unique_ptr<BoiteEnglobante>(new BoiteEnglobante(m,b2,indexTriangles));
+            }
+            else
+            {
+                if(dist.y > dist.x && dist.y > dist.z)
+                {
+                    Box b1{min, glm::vec3(max.x,centre.y,max.z)};
+                    Box b2{glm::vec3(min.x,centre.y,min.z), max};
+                    f1=std::unique_ptr<BoiteEnglobante>(new BoiteEnglobante(m,b1,indexTriangles));
+                    f2=std::unique_ptr<BoiteEnglobante>(new BoiteEnglobante(m,b2,indexTriangles));
+                }
+                else
+                {
+                    if(dist.z > dist.x && dist.z > dist.y)
+                    {
+                        Box b1{min, glm::vec3(max.x,max.y,centre.z)};
+                        Box b2{glm::vec3(min.x,min.y,centre.z), max};
+                        f1=std::unique_ptr<BoiteEnglobante>(new BoiteEnglobante(m,b1,indexTriangles));
+                        f2=std::unique_ptr<BoiteEnglobante>(new BoiteEnglobante(m,b2,indexTriangles));
+                    }
+                }
+            }
+        }*/
+
 
         if(indexTriangles.size()>20)
         {
             //std::cout << "subdivision" << std::endl;
-            glm::vec3 tem=((b.v0+b.v1)/2.0f);
-            Box b1(b.v0,tem);
-            Box b2(glm::vec3(b1.v1.x, b1.v0.y, b1.v0.z),glm::vec3(b.v1.x, b1.v1.y, b1.v1.z));
-            Box b3(glm::vec3(b1.v0.x, b1.v1.y, b1.v0.z),glm::vec3(b1.v1.x, b.v1.y, b1.v1.z));
-            Box b4(glm::vec3(b1.v1.x, b1.v1.y, b.v0.z),glm::vec3(b.v1.x, b.v1.y, b1.v1.z));
+            glm::vec3 pa=b.v0;
+            glm::vec3 pb=b.v1;
+            glm::vec3 size(pb-pa);
+            //size/=50;
+            size = glm::vec3(0,0,0);
+            glm::vec3 tem=((pa+pb)/2.0f);
+            Box b1(pa,tem);
+            b1.v0-=size;
+            b1.v1+=size;
+            Box b2(glm::vec3(tem.x-size.x, pa.y-size.y, pa.z-size.z),glm::vec3(pb.x+size.x, tem.y+size.y, tem.z+size.z));
+            Box b3(glm::vec3(pa.x-size.x, tem.y-size.y, pa.z-size.z),glm::vec3(tem.x+size.x, pb.y+size.y, tem.z+size.z));
+            Box b4(glm::vec3(tem.x-size.x, tem.y-size.y, pa.z-size.z),glm::vec3(pb.x+size.x, pb.y+size.y, tem.z+size.z));
 
-            Box b5(glm::vec3(b.v0.x, b.v0.y, b1.v1.z),glm::vec3(b1.v1.x, b1.v1.y, b.v1.z));
-            Box b6(glm::vec3(b1.v1.x, b1.v0.y, b1.v1.z),glm::vec3(b.v1.x, b1.v1.y, b.v1.z));
-            Box b7(glm::vec3(b1.v0.x, b1.v1.y, b1.v1.z),glm::vec3(b1.v1.x, b.v1.y, b.v1.z));
-            Box b8(glm::vec3(b1.v1.x, b1.v1.y, b1.v1.z),glm::vec3(b.v1.x, b.v1.y, b.v1.z));
-            f1=new BoiteEnglobante(m,b1,indexTriangles);
-            f2=new BoiteEnglobante(m,b2,indexTriangles);
-            f3=new BoiteEnglobante(m,b3,indexTriangles);
-            f4=new BoiteEnglobante(m,b4,indexTriangles);
-            f5=new BoiteEnglobante(m,b5,indexTriangles);
-            f6=new BoiteEnglobante(m,b6,indexTriangles);
-            f7=new BoiteEnglobante(m,b7,indexTriangles);
-            f8=new BoiteEnglobante(m,b8,indexTriangles);
+            Box b5(glm::vec3(pa.x-size.x, pa.y-size.y, tem.z-size.z),glm::vec3(tem.x+size.x, tem.y+size.y, pb.z+size.z));
+            Box b6(glm::vec3(tem.x-size.x, pa.y-size.y, tem.z-size.z),glm::vec3(pb.x+size.x, tem.y+size.y, pb.z+size.z));
+            Box b7(glm::vec3(pa.x-size.x, tem.y-size.y, tem.z-size.z),glm::vec3(tem.x+size.x, pb.y+size.y, pb.z+size.z));
+            Box b8(glm::vec3(tem.x-size.x, tem.y-size.y, tem.z-size.z),glm::vec3(pb.x+size.x, pb.y+size.y, pb.z+size.z));
+
+            f1=std::unique_ptr<BoiteEnglobante>(new BoiteEnglobante(m,b1,indexTriangles));
+            f2=std::unique_ptr<BoiteEnglobante>(new BoiteEnglobante(m,b2,indexTriangles));
+            f3=std::unique_ptr<BoiteEnglobante>(new BoiteEnglobante(m,b3,indexTriangles));
+            f4=std::unique_ptr<BoiteEnglobante>(new BoiteEnglobante(m,b4,indexTriangles));
+            f5=std::unique_ptr<BoiteEnglobante>(new BoiteEnglobante(m,b5,indexTriangles));
+            f6=std::unique_ptr<BoiteEnglobante>(new BoiteEnglobante(m,b6,indexTriangles));
+            f7=std::unique_ptr<BoiteEnglobante>(new BoiteEnglobante(m,b7,indexTriangles));
+            f8=std::unique_ptr<BoiteEnglobante>(new BoiteEnglobante(m,b8,indexTriangles));
 
         }
-
     }
 
     Box laBoite;
-    BoiteEnglobante* f1;
-    BoiteEnglobante* f2;
-    BoiteEnglobante* f3;
-    BoiteEnglobante* f4;
-    BoiteEnglobante* f5;
-    BoiteEnglobante* f6;
-    BoiteEnglobante* f7;
-    BoiteEnglobante* f8;
+    std::unique_ptr<BoiteEnglobante> f1;
+    std::unique_ptr<BoiteEnglobante> f2;
+    std::unique_ptr<BoiteEnglobante> f3;
+    std::unique_ptr<BoiteEnglobante> f4;
+    std::unique_ptr<BoiteEnglobante> f5;
+    std::unique_ptr<BoiteEnglobante> f6;
+    std::unique_ptr<BoiteEnglobante> f7;
+    std::unique_ptr<BoiteEnglobante> f8;
     const Maillage * maillage;
     QVector<int> indexTriangles;
-    ~BoiteEnglobante()
-    {
-        delete(f1);
-        delete(f2);
-        delete(f3);
-        delete(f4);
-        delete(f5);
-        delete(f6);
-        delete(f7);
-        delete(f8);
-    }
-};
-
-struct MaillageBox
-{
-    const Maillage m;
-    const BoiteEnglobante b;
 };
 
 glm::vec3 normale(const glm::vec3& point, const Sphere& sphere){
@@ -145,11 +182,6 @@ glm::vec3 normale(const glm::vec3& point, const Maillage &maillage)
 glm::vec3 normale(const glm::vec3& point, const BoiteEnglobante &be)
 {
     return glm::vec3(1,0,0);
-}
-
-glm::vec3 normale(const glm::vec3& point, const MaillageBox &mb)
-{
-    return normale(point,mb.m);
 }
 
 glm::vec3 normale(const glm::vec3& point, const Box &box){
@@ -227,6 +259,7 @@ float intersect (const Ray & ray, const Maillage &maillage)
 
 float intersect (const Ray & r, const Box &box)
 {
+    //return 0;
     float t;
     glm::vec3 dirfrac;
     // r.dir is unit direction vector of ray
@@ -266,49 +299,51 @@ float intersect (const Ray & r, const Box &box)
 
 float intersect (const Ray & ray, const BoiteEnglobante &b)
 {
+    //std::cout << "intersect boite englo" << std::endl;
     float f=noIntersect;
     if(intersect(ray, b.laBoite) != noIntersect)
     {
-        if(b.f1!=nullptr)
+        //std::cout << "intersect boite englo" << std::endl;
+        if(b.f1)
         {
-
-            float minf;
+            float minf=noIntersect;
             if((f=intersect(ray, *(b.f1)))!=noIntersect){
-               if(f<minf)
+               if(f<minf&&f>0)
                    minf=f;
             }
             if((f=intersect(ray, *(b.f2)))!=noIntersect){
-                if(f<minf)
+                if(f<minf&&f>0)
                     minf=f;
             }
             if((f=intersect(ray, *(b.f3)))!=noIntersect){
-                if(f<minf)
+                if(f<minf&&f>0)
                     minf=f;
             }
             if((f=intersect(ray, *(b.f4)))!=noIntersect){
-                if(f<minf)
+                if(f<minf&&f>0)
                     minf=f;
             }
             if((f=intersect(ray, *(b.f5)))!=noIntersect){
-                if(f<minf)
+                if(f<minf&&f>0)
                     minf=f;
             }
             if((f=intersect(ray, *(b.f6)))!=noIntersect){
-                if(f<minf)
+                if(f<minf&&f>0)
                     minf=f;
             }
             if((f=intersect(ray, *(b.f7)))!=noIntersect){
-                if(f<minf)
+                if(f<minf&&f>0)
                     minf=f;
             }
             if((f=intersect(ray, *(b.f8)))!=noIntersect){
-                if(f<minf)
+                if(f<minf&&f>0)
                     minf=f;
             }
             return minf;
         }
         else
         {
+            //std::cout << " eziofbhid" << std::endl;
             for(int cpt = 0; cpt < b.indexTriangles.length(); cpt++)
             {
                 QVector3D p1=b.maillage->getGeom().at(b.maillage->getTopo().at(b.indexTriangles.at(cpt)*3));
@@ -327,11 +362,6 @@ float intersect (const Ray & ray, const BoiteEnglobante &b)
     {
         return noIntersect;
     }
-}
-
-float intersect (const Ray & ray, const MaillageBox &mb)
-{
-    return intersect(ray,mb.b);
 }
 
 
@@ -470,19 +500,27 @@ namespace scene
     // Objects
     // Note: this is a rather convoluted way of initialising a vector of unique_ptr ;)
     const std::vector<std::unique_ptr<Object>> objects = [] (){
-        Maillage m;
+        Maillage &m =*new Maillage();
         QVector3D center(50,0,50);
         glm::vec3 min;
         glm::vec3 max;
         m.geometry(center,"C:/Users/etu/Downloads/BeautifulGirl.obj", min, max);
         std::cout << "chargement obj done " << std::endl;
-        m.translate(center, min, max);
-        //m.Ecriture("BeautifulGirl.obj");
+        //m.translate(center, min, max);
+        std::cout << min.x<< " " << min.y << " " << min.z << std::endl;
+        std::cout << max.x << " " << max.y << " " << max.z << std::endl;
+        m.Ecriture("BeautifulGirl.obj");
         Box box(min, max);
+
+        //Box box(glm::vec3(-100,-100,-100), glm::vec3(100,100,100));
         std::cout << "debut creation boite englobante " << std::endl;
-        BoiteEnglobante test(m, box, m.getTopo());
-        std::cout << test.indexTriangles.length() << std::endl;
-        std::cout << test.f1->indexTriangles.length() << std::endl;
+        QVector<int> indices;
+        for(int i=0;i<m.getTopo().size()/3;i++){
+            indices.push_back(i);
+        }
+        BoiteEnglobante &test=*new BoiteEnglobante(m, box, indices);
+        std::cout << "apres creation boite : " << test.indexTriangles.length() << std::endl;
+        /*std::cout << test.f1->indexTriangles.length() << std::endl;
         std::cout << test.f2->indexTriangles.length() << std::endl;
         std::cout << test.f3->indexTriangles.length() << std::endl;
         std::cout << test.f4->indexTriangles.length() << std::endl;
@@ -490,7 +528,7 @@ namespace scene
         std::cout << test.f6->indexTriangles.length() << std::endl;
         std::cout << test.f7->indexTriangles.length() << std::endl;
         std::cout << test.f8->indexTriangles.length() << std::endl;
-        std::cout << "creation boite englobante done " << std::endl;
+        std::cout << "creation boite englobante done " << std::endl;*/
 
         std::vector<std::unique_ptr<Object>> ret;
         ret.push_back(makeObject(backWallA, white));
@@ -506,8 +544,9 @@ namespace scene
 
         //ret.push_back(makeObject(m, red));
 
+        ret.push_back(makeObject(test, red));
+
         //ret.push_back(makeObject(m, white));
-        //ret.push_back(std::unique_ptr<Object>(new ObjectTpl<Maillage,Diffuse>(m,white)));
 
         /*for(int i=0;i<m.getTopo().size();i+=3){
             QVector3D p1=m.getGeom().at(m.getTopo().at(i));
