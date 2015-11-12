@@ -5,7 +5,7 @@
 #include <iostream>
 #include <fstream>
 #include <time.h>
-#include <C:/Users/etu/Downloads/glm-0.9.7.1/glm/glm/vec3.hpp>
+#include <glm/vec3.hpp>
 
 
 class Maillage

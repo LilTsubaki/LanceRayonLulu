@@ -14,10 +14,10 @@
 // GLM (vector / matrix)
 #define GLM_FORCE_RADIANS
 
-#include <C:/Users/etu/Downloads/glm-0.9.7.1/glm/glm/vec4.hpp>
-#include <C:/Users/etu/Downloads/glm-0.9.7.1/glm/glm/vec3.hpp>
-#include <C:/Users/etu/Downloads/glm-0.9.7.1/glm/glm/mat4x4.hpp>
-#include <C:/Users/etu/Downloads/glm-0.9.7.1/glm/glm/gtc/matrix_transform.hpp>
+#include <glm/vec4.hpp>
+#include <glm/vec3.hpp>
+#include <glm/mat4x4.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 
 const float pi = 3.1415927f;
 const float noIntersect = std::numeric_limits<float>::infinity();
@@ -474,7 +474,7 @@ namespace scene
         QVector3D center(50,0,50);
         glm::vec3 min;
         glm::vec3 max;
-        m.geometry(center,"C:/Users/etu/Downloads/BeautifulGirl/BeautifulGirl.obj", min, max);
+        m.geometry(center,"C:/Users/etu/Downloads/BeautifulGirl.obj", min, max);
         std::cout << "chargement obj done " << std::endl;
         m.translate(center, min, max);
         //m.Ecriture("BeautifulGirl.obj");

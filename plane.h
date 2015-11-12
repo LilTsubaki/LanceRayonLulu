@@ -1,7 +1,7 @@
 #ifndef PLANE_H
 #define PLANE_H
-#include <C:/Users/etu/Downloads/glm-0.9.7.1/glm/glm/vec3.hpp>
-#include <C:/Users/etu/Downloads/glm-0.9.7.1/glm/glm/gtc/matrix_transform.hpp>
+#include <glm/vec3.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 
 class Plane
 {
